@@ -1,0 +1,118 @@
+import pickle
+from multiprocessing.sharedctypes import Value
+from pathlib import Path
+
+import slack
+
+client = slack.WebClient("fake token")
+
+# Returns the current user dictionary
+def getUserDictionary():
+    userDicFileR = open("pickleFiles/userdictionary", "rb")
+    userDic = pickle.load(userDicFileR)
+    userDicFileR.close()
+    return userDic
+
+# Matches a name to the userID. If there is no userID, it adds it to the dictionary.
+def findUserName(userDic, userID):
+    if userID in userDic:
+        name = userDic[userID]
+        return name, userDic
+    else:
+        name, userDic = addUserToDictionary(userID)        
+        return name, userDic
+
+# Adds a new user to the dictionary and returns updated dictionary
+def addUserToDictionary(userID):
+    userDic = getUserDictionary()
+    userinfo = client.users_info(user=userID)
+    name = userinfo['user']['name']
+
+    userIDFile = open("pickleFiles/userdictionary", 'wb')
+    userDic[userID] = name
+    print(name + " was added to the User Dictionary")
+    pickle.dump(userDic, userIDFile)
+    userIDFile.close()
+    return name, userDic
+
+def saveUserDictionary(dictionary):
+    userIDFileW = open("pickleFiles/userdictionary", 'wb')
+    pickle.dump(dictionary, userIDFileW)
+    userIDFileW.close()
+
+# Returns the current daily leaderboard
+def getDailyLeaderboard():
+    dailyLeaderboardFileR = open("pickleFiles/dailyLeaderboard", "rb")
+    dailyLeaderboard = pickle.load(dailyLeaderboardFileR)
+    dailyLeaderboardFileR.close()
+    return dailyLeaderboard
+    
+# Adds score to the daily leaderboard
+def updateDailyLeaderboard(winner_name, dailyLeaderboard, pointValue):
+    if winner_name in dailyLeaderboard:
+        dailyLeaderboard[winner_name] = dailyLeaderboard[winner_name] + pointValue
+    else:        
+        dailyLeaderboard[winner_name] = pointValue
+
+# Saves the daily leaderboard
+def saveDailyLeaderboard(dailyLeaderboard):
+    dailyLeaderboardFileW = open("pickleFiles/dailyLeaderboard", "wb")
+    pickle.dump(dailyLeaderboard, dailyLeaderboardFileW)
+    dailyLeaderboardFileW.close()
+
+#Set all the scores to zero while saving the names in the dictionary.
+def resetDailyLeaderboard():
+    dailyLeaderboardFileR = open("pickleFiles/dailyLeaderboard", "rb")
+    dailyLeaderboard = pickle.load(dailyLeaderboardFileR)
+    for key, value in dailyLeaderboard.items():
+        dailyLeaderboard[key] = 0
+    dailyLeaderboardFileR.close()
+    
+    dailyLeaderboardFileW = open("pickleFiles/dailyLeaderboard", "wb")
+    pickle.dump(dailyLeaderboard, dailyLeaderboardFileW)
+    dailyLeaderboardFileW.close()
+
+# Gets weekly leaderboard
+def getWeeklyLeaderboard():    
+    weeklyLeaderboardFileR = open("pickleFiles/weeklyLeaderboard", "rb")
+    weeklyLeaderboard = pickle.load(weeklyLeaderboardFileR)
+    weeklyLeaderboardFileR.close()
+    return weeklyLeaderboard
+
+#Determines the winner of the daily leaderboard
+def calculateDailyLeaderboardWinner():
+    dailyLeaderboardFileR = open("pickleFiles/dailyLeaderboard", "rb")
+    dailyLeaderboard = pickle.load(dailyLeaderboardFileR)
+    winner_name = max(dailyLeaderboard, key=dailyLeaderboard.get)
+    dailyLeaderboardFileR.close()
+    return winner_name    
+
+# Adds score to the weekly leaderboard
+def updateWeeklyLeaderboard(winner_name, weeklyLeaderboard):
+    if winner_name in weeklyLeaderboard:
+        weeklyLeaderboard[winner_name] = weeklyLeaderboard[winner_name] + 1
+    else:        
+        weeklyLeaderboard[winner_name] = 1
+    return weeklyLeaderboard
+
+# Saves weekly leaderboard to Pickle File
+def saveWeeklyLeaderboard(weeklyLeaderboard):
+    weeklyLeaderboardFileW = open("pickleFiles/weeklyLeaderboard", "wb")
+    pickle.dump(weeklyLeaderboard, weeklyLeaderboardFileW)
+    weeklyLeaderboardFileW.close()
+
+# Takes a leaderboard, deletes anything with a zero value, then sorts it by its highest score
+def formatLeaderBoard(leaderboard):
+    topscores = ''
+    sorted_list = ''
+    sorted_dict = []
+
+    leaderboard = {k: v for k, v in leaderboard.items() if v > 0}
+            
+    sorted_dict += sorted(leaderboard.items(), key=lambda kv: kv[1], reverse=True)
+    for x in sorted_dict:
+        sorted_list = [': '.join(map(str, x)) for x in sorted_dict]
+    for y in sorted_list:
+        topscores += str(y) + "\n"
+    
+    return topscores
